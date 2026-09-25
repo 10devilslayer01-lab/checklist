@@ -54,65 +54,8 @@
       padding: 16px;  
       display: flex;  
       flex-direction: column;  
-      gap: 14px;  
+      gap: 16px;  
     }  
-
-    /* Mode Toggle Bar */
-    .mode-toggle-card {
-      background: var(--surface-card);
-      border-radius: var(--radius-lg);
-      padding: 6px;
-      display: flex;
-      gap: 6px;
-      box-shadow: var(--shadow-sm);
-      border: 1px solid var(--border-light);
-    }
-
-    .mode-btn {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      border-radius: var(--radius-md);
-      font-weight: 700;
-      font-size: 12px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      background: transparent;
-      color: var(--text-secondary);
-      transition: all 0.2s ease;
-    }
-
-    .mode-btn.active {
-      background: #0F172A;
-      color: #FFFFFF;
-      box-shadow: var(--shadow-sm);
-    }
-
-    /* Mode Banner Indicator */
-    .mode-banner {
-      padding: 8px 14px;
-      border-radius: var(--radius-md);
-      font-size: 11px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .mode-banner.collab {
-      background: #EFF6FF;
-      color: var(--accent-blue);
-      border: 1px solid #BFDBFE;
-    }
-
-    .mode-banner.offline {
-      background: #FEF3C7;
-      color: #92400E;
-      border: 1px solid #FDE68A;
-    }
 
     /* Update Banner */
     .update-banner {
@@ -139,7 +82,7 @@
       display: flex;  
       justify-content: space-between;  
       align-items: center;  
-      padding: 2px 2px;  
+      padding: 6px 2px;  
     }  
 
     .brand-group {  
@@ -580,22 +523,6 @@
     <div class="header-badge">NPRCET</div>  
   </div>  
 
-  <!-- Mode Switcher Toggle -->
-  <div class="mode-toggle-card">
-    <button id="mode-btn-collab" class="mode-btn active" onclick="switchAppMode('collaborative')">
-      <span>🌐</span> Collaborative Mode
-    </button>
-    <button id="mode-btn-offline" class="mode-btn" onclick="switchAppMode('offline')">
-      <span>💾</span> Offline Mode
-    </button>
-  </div>
-
-  <!-- Dynamic Mode Banner -->
-  <div id="mode-banner" class="mode-banner collab">
-    <span id="mode-banner-text">🌐 Collaborative: Live sync enabled with Google Apps Script</span>
-    <span id="sync-status" style="font-size:10px; opacity:0.8;">● Live</span>
-  </div>
-
   <!-- Executive Hero Banner -->  
   <div class="hero-card">  
     <h2 class="hero-title">Studio Task Board</h2>  
@@ -653,7 +580,7 @@
 <div class="modal-overlay" id="wipe-modal">  
   <div class="modal-card">  
     <div class="modal-title">Wipe Out Board?</div>  
-    <div class="modal-text" id="wipe-modal-text">Are you sure you want to clear all active tasks?</div>  
+    <div class="modal-text">Are you sure you want to clear all active tasks from this dashboard?</div>  
     <div class="modal-actions">  
       <button class="btn-edit" style="padding:10px 18px;" onclick="closeModal('wipe-modal')">Cancel</button>  
       <button class="btn-delete" style="padding:10px 18px;" id="modal-confirm-btn">Yes, Clear All</button>  
@@ -691,46 +618,11 @@
 </div>  
 
 <script>  
-  // Replace this with your Google Apps Script Deployment Web App URL
-  const SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
-  const CURRENT_APP_VERSION = "1.2.0"; 
-
-  // Mode Management: 'collaborative' or 'offline'
-  let currentAppMode = localStorage.getItem('fine_arts_app_mode') || 'collaborative';
-  
+  const CURRENT_APP_VERSION = "1.2.0"; // App client version string
   let appState = { active: [], archived: [] };  
   let currentView = 'active';  
   let currentEditingTaskId = null;  
   let isSaving = false;
-
-  function switchAppMode(mode) {
-    currentAppMode = mode;
-    localStorage.setItem('fine_arts_app_mode', mode);
-    updateModeUI();
-    loadTasks();
-  }
-
-  function updateModeUI() {
-    const btnCollab = document.getElementById('mode-btn-collab');
-    const btnOffline = document.getElementById('mode-btn-offline');
-    const banner = document.getElementById('mode-banner');
-    const bannerText = document.getElementById('mode-banner-text');
-    const syncStatus = document.getElementById('sync-status');
-
-    if (currentAppMode === 'collaborative') {
-      btnCollab.classList.add('active');
-      btnOffline.classList.remove('active');
-      banner.className = 'mode-banner collab';
-      bannerText.innerText = '🌐 Collaborative: Live sync with Google Apps Script';
-      syncStatus.innerText = '● Live Sync';
-    } else {
-      btnOffline.classList.add('active');
-      btnCollab.classList.remove('active');
-      banner.className = 'mode-banner offline';
-      bannerText.innerText = '💾 Offline Mode: Saved locally on this device';
-      syncStatus.innerText = '● Local Only';
-    }
-  }
 
   function normalizeData(data) {  
     if (!data) return { active: [], archived: [] };  
@@ -755,19 +647,8 @@
   function loadTasks() {  
     if (isSaving) return;
 
-    if (currentAppMode === 'offline') {
-      const localRaw = localStorage.getItem('fine_arts_offline_tasks');
-      const data = localRaw ? JSON.parse(localRaw) : { active: [], archived: [] };
-      appState = normalizeData(data);
-      renderTasks();
-      return;
-    }
-
-    // Collaborative Mode Fetching
-    fetch(SCRIPT_URL)
-      .then(response => response.json())
-      .then(data => {
-        if (currentAppMode !== 'collaborative') return;
+    if (typeof google !== 'undefined' && google.script) {
+      google.script.run.withSuccessHandler(function(data) {  
         appState = normalizeData(data);  
         
         // Update Check Logic
@@ -777,31 +658,8 @@
         }
 
         renderTasks();  
-      })
-      .catch(err => console.error("Network sync issue:", err));
-  }  
-
-  function saveAndRefresh() {  
-    isSaving = true;
-    renderTasks();  
-
-    if (currentAppMode === 'offline') {
-      localStorage.setItem('fine_arts_offline_tasks', JSON.stringify(appState));
-      isSaving = false;
-      return;
-    }
-
-    // Collaborative Mode Saving
-    fetch(SCRIPT_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "save", data: appState })
-    })
-    .then(res => res.json())
-    .then(() => { isSaving = false; })
-    .catch(err => {
-      console.error("Save failed:", err);
-      isSaving = false;
-    });
+      }).getStoredTasks();  
+    }  
   }  
 
   function switchView(view) {  
@@ -1068,26 +926,10 @@
   function askWipeBoard() {  
     document.getElementById('wipe-modal').classList.add('active');  
     document.getElementById('modal-confirm-btn').onclick = function() {  
-      if (currentAppMode === 'offline') {
-        appState = { active: [], archived: [] };
-        localStorage.removeItem('fine_arts_offline_tasks');
-        closeModal('wipe-modal');
-        renderTasks();
-      } else {
-        fetch(SCRIPT_URL, {
-          method: "POST",
-          body: JSON.stringify({ action: "clear" })
-        })
-        .then(res => res.json())
-        .then(() => {
-          closeModal('wipe-modal');  
-          loadTasks();
-        })
-        .catch(err => {
-          console.error("Wipe failed:", err);
-          closeModal('wipe-modal');
-        });
+      if (typeof google !== 'undefined' && google.script) {
+        google.script.run.withSuccessHandler(loadTasks).clearAllTasks();  
       }
+      closeModal('wipe-modal');  
     };  
   }  
 
@@ -1095,10 +937,21 @@
     document.getElementById(modalId).classList.remove('active');  
   }  
 
-  // Auto Refresh Interval for Collaborative Mode (every 4 seconds)
+  function saveAndRefresh() {  
+    isSaving = true;
+    renderTasks();  
+    if (typeof google !== 'undefined' && google.script) {
+      google.script.run.withSuccessHandler(function() {
+        isSaving = false;
+      }).saveStoredTasks(appState);  
+    } else {
+      isSaving = false;
+    }
+  }  
+
   setInterval(function() {
     const editModalActive = document.getElementById('edit-modal').classList.contains('active');
-    if (!editModalActive && !isSaving && currentAppMode === 'collaborative') {
+    if (!editModalActive && !isSaving) {
       loadTasks();
     }
   }, 4000);
@@ -1109,10 +962,7 @@
     }
   });
 
-  window.onload = function() {
-    updateModeUI();
-    loadTasks();
-  };  
+  window.onload = loadTasks;  
 </script>
 </body>  
 </html>
